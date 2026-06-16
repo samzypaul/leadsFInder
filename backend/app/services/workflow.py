@@ -190,6 +190,7 @@ def _persist_lead(
     )
     lead = Lead(
         business_name=name,
+        owner_id=job.owner_id,
         username=merged.username,
         industry=merged.category,
         category=merged.category,
@@ -262,8 +263,13 @@ def _enrich_lead(db: Session, lead: Lead, service: str = "website development") 
     lead.priority = priority
     lead.score_breakdown = breakdown
 
-    # Outreach drafts (all channels), pitched around the offering
-    for msg in outreach.generate_all(lead, service=service):
+    # Outreach drafts (all channels), pitched around the offering, signed with the owner's brand
+    brand = None
+    if lead.owner_id:
+        from app.models import User
+        owner = db.get(User, lead.owner_id)
+        brand = owner.brand_name if owner else None
+    for msg in outreach.generate_all(lead, service=service, brand=brand):
         db.add(OutreachMessage(
             lead_id=lead.id, channel=msg["channel"],
             subject=msg.get("subject"), body=msg["body"],

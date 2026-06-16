@@ -36,8 +36,9 @@ def generate_outreach(
             db.delete(msg)
     db.commit()
 
+    brand = lead.owner.brand_name if lead.owner_id and lead.owner else None
     created: list[OutreachMessage] = []
-    for msg in outreach_svc.generate_all(lead, channels, lead.target_service or "website development"):
+    for msg in outreach_svc.generate_all(lead, channels, lead.target_service or "website development", brand):
         row = OutreachMessage(
             lead_id=lead.id, channel=msg["channel"],
             subject=msg.get("subject"), body=msg["body"],

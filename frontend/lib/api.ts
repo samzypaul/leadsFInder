@@ -18,7 +18,38 @@ export interface User {
   email: string;
   full_name: string | null;
   is_admin: boolean;
+  brand_name?: string | null;
+  business_info?: string | null;
+  brand_website?: string | null;
+  brand_phone?: string | null;
+  brand_email?: string | null;
 }
+
+export interface Deal {
+  id: number;
+  stage: string;
+  outreach_made: boolean;
+  currency: string;
+  revenue: number;
+  cost: number;
+  deposit: number;
+  notes: string | null;
+  profit: number;
+  outstanding: number;
+  updated_at: string;
+}
+
+export interface Attachment {
+  id: number;
+  kind: string; // proposal | contract
+  filename: string;
+  content_type: string;
+  size: number;
+  text_content: string | null;
+  created_at: string;
+}
+
+export const DEAL_STAGES = ["prospect", "contacted", "proposal_sent", "negotiating", "won", "lost"];
 
 export interface DiscoveryFilters {
   industry?: string | null;
@@ -69,6 +100,33 @@ export interface LeadSummary {
   phone: string | null;
   email: string | null;
   created_at: string;
+  deal_stage?: string | null;
+  is_client?: boolean;
+  deal_revenue?: number | null;
+  deal_profit?: number | null;
+  deal_currency?: string | null;
+}
+
+export interface ClientRow {
+  id: number;
+  business_name: string;
+  revenue: number;
+  profit: number;
+  currency: string;
+}
+
+export interface ClientAnalytics {
+  clients: number;
+  lost: number;
+  win_rate: number;
+  total_revenue: number;
+  total_cost: number;
+  total_profit: number;
+  total_deposits: number;
+  outstanding: number;
+  avg_deal_size: number;
+  currency: string;
+  top_clients: ClientRow[];
 }
 
 export interface Competitor {
@@ -113,6 +171,8 @@ export interface Lead extends LeadSummary {
   updated_at: string;
   competitors: Competitor[];
   outreach_messages: OutreachMessage[];
+  deal: Deal | null;
+  attachments: Attachment[];
 }
 
 export interface ProposalDoc {
@@ -135,6 +195,14 @@ export interface DashboardStats {
   pipeline: Record<string, number>;
   by_priority: Record<string, number>;
   recent_leads: LeadSummary[];
+  funnel: Record<string, number>;
+  deals_won: number;
+  deals_lost: number;
+  total_revenue: number;
+  total_cost: number;
+  total_profit: number;
+  total_deposits: number;
+  currency: string;
 }
 
 export interface ScanStep {
@@ -214,10 +282,60 @@ export const api = {
     return r.user;
   },
   me: () => req<User>("/auth/me"),
+  updateProfile: (body: Partial<User>) =>
+    req<User>("/auth/me", { method: "PATCH", body: JSON.stringify(body) }),
+  changePassword: (current_password: string, new_password: string) =>
+    req<void>("/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({ current_password, new_password }),
+    }),
   logout: () => {
     auth.clear();
     if (typeof window !== "undefined") window.location.href = "/login";
   },
+
+  // ── deal / funnel ──
+  getDeal: (leadId: number) => req<Deal>(`/leads/${leadId}/deal`),
+  updateDeal: (leadId: number, body: Partial<Deal>) =>
+    req<Deal>(`/leads/${leadId}/deal`, { method: "PUT", body: JSON.stringify(body) }),
+
+  // ── attachments ──
+  listAttachments: (leadId: number) => req<Attachment[]>(`/leads/${leadId}/attachments`),
+  uploadProposalText: (leadId: number, text: string) =>
+    req<Attachment>(`/leads/${leadId}/attachments/proposal-text`, {
+      method: "POST",
+      body: JSON.stringify({ text }),
+    }),
+  uploadAttachment: async (leadId: number, kind: "proposal" | "contract", file: File) => {
+    const fd = new FormData();
+    fd.append("kind", kind);
+    fd.append("file", file);
+    const res = await fetch(`${API_BASE}/leads/${leadId}/attachments`, {
+      method: "POST",
+      headers: authHeaders(), // no Content-Type — browser sets multipart boundary
+      body: fd,
+    });
+    if (!res.ok) throw new Error(`Upload failed: ${res.status} ${await res.text()}`);
+    return (await res.json()) as Attachment;
+  },
+  attachmentDownloadUrl: (attId: number) => `${API_BASE}/attachments/${attId}/download`,
+  downloadAttachment: async (att: Attachment) => {
+    const res = await fetch(`${API_BASE}/attachments/${att.id}/download`, {
+      headers: authHeaders(),
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+    const blob = await res.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = att.filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
+  },
+  deleteAttachment: (attId: number) =>
+    req<void>(`/attachments/${attId}`, { method: "DELETE" }),
 
   // ── discovery ──
   discover: (body: { query?: string; filters?: DiscoveryFilters; service?: string }) =>
@@ -226,6 +344,7 @@ export const api = {
     req<DiscoverScanResult>("/discover/scan", { method: "POST", body: JSON.stringify(body) }),
 
   stats: () => req<DashboardStats>("/dashboard/stats"),
+  clientAnalytics: () => req<ClientAnalytics>("/dashboard/clients"),
   leads: (params: Record<string, string> = {}) => {
     const qs = new URLSearchParams(params).toString();
     return req<LeadSummary[]>(`/leads${qs ? `?${qs}` : ""}`);

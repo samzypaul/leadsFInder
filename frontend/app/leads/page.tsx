@@ -12,7 +12,7 @@ export default function LeadsPage() {
   const [leads, setLeads] = useState<LeadSummary[]>([]);
   const [q, setQ] = useState("");
   const [priority, setPriority] = useState("");
-  const [status, setStatus] = useState("Qualified Lead");
+  const [relationship, setRelationship] = useState("lead"); // active pipeline (won -> Clients)
   const [loading, setLoading] = useState(true);
 
   function load() {
@@ -20,7 +20,7 @@ export default function LeadsPage() {
     const params: Record<string, string> = { sort: "score" };
     if (q) params.q = q;
     if (priority) params.priority = priority;
-    if (status) params.status = status;
+    if (relationship && relationship !== "all") params.relationship = relationship;
     api.leads(params).then(setLeads).finally(() => setLoading(false));
   }
 
@@ -29,7 +29,7 @@ export default function LeadsPage() {
     const t = setTimeout(load, 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, priority, status, ready]);
+  }, [q, priority, relationship, ready]);
 
   if (!ready) return null;
 
@@ -38,10 +38,10 @@ export default function LeadsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Leads</h1>
         <div className="flex gap-2">
-          <button className="btn-ghost" onClick={() => api.download("csv", status || undefined)}>
+          <button className="btn-ghost" onClick={() => api.download("csv")}>
             Export CSV
           </button>
-          <button className="btn-ghost" onClick={() => api.download("excel", status || undefined)}>
+          <button className="btn-ghost" onClick={() => api.download("excel")}>
             Export Excel
           </button>
         </div>
@@ -61,10 +61,11 @@ export default function LeadsPage() {
             </option>
           ))}
         </select>
-        <select className="input max-w-[12rem]" value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">All statuses</option>
-          <option value="Qualified Lead">Qualified Lead</option>
-          <option value="Website Found">Website Found</option>
+        <select className="input max-w-[12rem]" value={relationship} onChange={(e) => setRelationship(e.target.value)}>
+          <option value="lead">Active pipeline</option>
+          <option value="client">Clients (won)</option>
+          <option value="lost">Lost</option>
+          <option value="all">All</option>
         </select>
       </div>
 

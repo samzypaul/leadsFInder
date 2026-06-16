@@ -10,6 +10,8 @@ const NAV = [
   { href: "/discover", label: "Discover" },
   { href: "/scan", label: "Single Scan" },
   { href: "/leads", label: "Leads" },
+  { href: "/clients", label: "Clients" },
+  { href: "/profile", label: "Profile" },
 ];
 
 export function TopNav() {

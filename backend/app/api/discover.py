@@ -67,7 +67,7 @@ def discover(
 def discover_and_scan(
     req: DiscoverScanRequest,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current: User = Depends(get_current_user),
 ):
     """Discover candidates (or use the supplied list) and run the workflow over them."""
     candidates: list[Candidate]
@@ -86,6 +86,7 @@ def discover_and_scan(
             service=service,
             hint_category=cand.category,   # carry the discovered niche into the lead
             hint_city=cand.city,
+            owner_id=current.id,
             status="queued",
         )
         db.add(job)

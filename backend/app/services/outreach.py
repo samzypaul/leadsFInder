@@ -14,17 +14,22 @@ _CHANNEL_BRIEF = {
 }
 
 
-def _signature() -> str:
-    return "— The team at Kunonu Digital"
+DEFAULT_BRAND = "Kunonu Digital"
 
 
-def generate_message(lead, channel: str, service: str = "website development") -> dict:
+def _signature(brand: str) -> str:
+    return f"— The team at {brand}"
+
+
+def generate_message(lead, channel: str, service: str = "website development",
+                     brand: str | None = None) -> dict:
     """Return {channel, subject, body, ai_generated}."""
+    brand = brand or DEFAULT_BRAND
     brief = _CHANNEL_BRIEF.get(channel, _CHANNEL_BRIEF["email"])
     prompt = (
         f"Write {brief} to {lead.business_name}, a {lead.industry or lead.category} in "
         f"{lead.city or 'Tanzania'}. Goal: offer '{service}' to help them win more customers. "
-        f"Personalize using: {lead.ai_summary or ''}. Sign as 'Kunonu Digital'. "
+        f"Personalize using: {lead.ai_summary or ''}. Sign as '{brand}'. "
         + ('Return JSON {"subject": "...", "body": "..."}.' if channel == "email"
            else 'Return JSON {"body": "..."}.')
     )
@@ -35,6 +40,7 @@ def generate_message(lead, channel: str, service: str = "website development") -
         name = lead.business_name
         loc = lead.city or "Tanzania"
         cat = (lead.category or lead.industry or "business").lower()
+        signoff = _signature(brand)
         website = is_website_service(service)
         # A short, service-aware hook reused across channels.
         hook = (
@@ -60,7 +66,7 @@ def generate_message(lead, channel: str, service: str = "website development") -
                     f"I came across your {cat} in {loc} and loved what you're doing on social "
                     f"media — {pain}.\n\n"
                     f"We help Tanzanian {cat}s with {service}. Could I send over a quick example "
-                    f"and a free plan tailored to {name}?\n\n{_signature()}"
+                    f"and a free plan tailored to {name}?\n\n{signoff}"
                 ),
             }
         bodies = {
@@ -76,5 +82,6 @@ def generate_message(lead, channel: str, service: str = "website development") -
     return {"channel": channel, "subject": subject, "body": data.get("body", ""), "ai_generated": ai_gen}
 
 
-def generate_all(lead, channels: list[str] | None = None, service: str = "website development") -> list[dict]:
-    return [generate_message(lead, c, service) for c in (channels or CHANNELS)]
+def generate_all(lead, channels: list[str] | None = None, service: str = "website development",
+                 brand: str | None = None) -> list[dict]:
+    return [generate_message(lead, c, service, brand) for c in (channels or CHANNELS)]

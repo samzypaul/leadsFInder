@@ -21,6 +21,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    LargeBinary,
     String,
     Text,
     func,
@@ -65,6 +66,15 @@ class ScanStage(str, enum.Enum):
     LEAD_CREATED = "lead_created"
 
 
+class DealStage(str, enum.Enum):
+    PROSPECT = "prospect"
+    CONTACTED = "contacted"
+    PROPOSAL_SENT = "proposal_sent"
+    NEGOTIATING = "negotiating"
+    WON = "won"
+    LOST = "lost"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -74,6 +84,14 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     is_active: Mapped[bool] = mapped_column(default=True)
     is_admin: Mapped[bool] = mapped_column(default=False)
+
+    # ── Branding / business profile (used in outreach + proposals) ────
+    brand_name: Mapped[str | None] = mapped_column(String(255))
+    business_info: Mapped[str | None] = mapped_column(Text)
+    brand_website: Mapped[str | None] = mapped_column(String(255))
+    brand_phone: Mapped[str | None] = mapped_column(String(64))
+    brand_email: Mapped[str | None] = mapped_column(String(255))
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -81,6 +99,7 @@ class Lead(Base):
     __tablename__ = "leads"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    owner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), index=True)
 
     # ── Business details ──────────────────────────────────────────────
     business_name: Mapped[str] = mapped_column(String(255), index=True)
@@ -146,6 +165,34 @@ class Lead(Base):
         back_populates="lead", cascade="all, delete-orphan"
     )
     scan_jobs: Mapped[list["ScanJob"]] = relationship(back_populates="lead")
+    owner: Mapped["User | None"] = relationship()
+    deal: Mapped["Deal | None"] = relationship(
+        back_populates="lead", cascade="all, delete-orphan", uselist=False
+    )
+    attachments: Mapped[list["Attachment"]] = relationship(
+        back_populates="lead", cascade="all, delete-orphan"
+    )
+
+    # ── Deal-derived convenience props (surfaced on summaries) ─────────
+    @property
+    def deal_stage(self) -> str | None:
+        return self.deal.stage if self.deal else None
+
+    @property
+    def is_client(self) -> bool:
+        return bool(self.deal and self.deal.stage == "won")
+
+    @property
+    def deal_revenue(self) -> float | None:
+        return self.deal.revenue if self.deal else None
+
+    @property
+    def deal_profit(self) -> float | None:
+        return self.deal.profit if self.deal else None
+
+    @property
+    def deal_currency(self) -> str | None:
+        return self.deal.currency if self.deal else None
 
 
 class Competitor(Base):
@@ -182,6 +229,7 @@ class ScanJob(Base):
     service: Mapped[str | None] = mapped_column(String(255))  # the offering being sold
     hint_category: Mapped[str | None] = mapped_column(String(255))  # niche hint from discovery
     hint_city: Mapped[str | None] = mapped_column(String(128))
+    owner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), index=True)
     status: Mapped[str] = mapped_column(String(32), default="queued")  # queued|running|done|error
     final_stage: Mapped[str | None] = mapped_column(String(32))
     verdict: Mapped[str | None] = mapped_column(String(32))  # LeadStatus value
@@ -192,3 +240,50 @@ class ScanJob(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     lead: Mapped["Lead | None"] = relationship(back_populates="scan_jobs")
+
+
+class Deal(Base):
+    """Funnel + financials for a lead (one per lead)."""
+    __tablename__ = "deals"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    lead_id: Mapped[int] = mapped_column(ForeignKey("leads.id", ondelete="CASCADE"), unique=True, index=True)
+    stage: Mapped[str] = mapped_column(String(32), default=DealStage.PROSPECT.value, index=True)
+    outreach_made: Mapped[bool] = mapped_column(default=False)
+    currency: Mapped[str] = mapped_column(String(8), default="TZS")
+    revenue: Mapped[float] = mapped_column(Float, default=0.0)   # amount earned / agreed
+    cost: Mapped[float] = mapped_column(Float, default=0.0)      # amount spent delivering
+    deposit: Mapped[float] = mapped_column(Float, default=0.0)   # advances / deposits received
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=utcnow
+    )
+
+    lead: Mapped["Lead"] = relationship(back_populates="deal")
+
+    @property
+    def profit(self) -> float:
+        return round((self.revenue or 0.0) - (self.cost or 0.0), 2)
+
+    @property
+    def outstanding(self) -> float:
+        """Revenue still to be collected after deposits/advances."""
+        return round((self.revenue or 0.0) - (self.deposit or 0.0), 2)
+
+
+class Attachment(Base):
+    """Uploaded proposal (PDF/text) or signed contract (PDF/image) for a lead."""
+    __tablename__ = "attachments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    lead_id: Mapped[int] = mapped_column(ForeignKey("leads.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(32), index=True)  # "proposal" | "contract"
+    filename: Mapped[str] = mapped_column(String(255))
+    content_type: Mapped[str] = mapped_column(String(128), default="application/octet-stream")
+    size: Mapped[int] = mapped_column(Integer, default=0)
+    text_content: Mapped[str | None] = mapped_column(Text)     # for text proposals
+    data: Mapped[bytes | None] = mapped_column(LargeBinary)     # for uploaded files
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    lead: Mapped["Lead"] = relationship(back_populates="attachments")

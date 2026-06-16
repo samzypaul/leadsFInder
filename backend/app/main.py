@@ -7,7 +7,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
-from app.api import auth, dashboard, discover, export, leads, outreach, scan
+from app.api import attachments, auth, dashboard, discover, export, leads, outreach, scan
 from app.api.deps import get_current_user
 from app.config import settings
 from app.core.bootstrap import ensure_admin_user
@@ -61,4 +61,5 @@ app.include_router(leads.router, dependencies=_protected)
 app.include_router(outreach.router, dependencies=_protected)
 app.include_router(dashboard.router, dependencies=_protected)
 app.include_router(export.router, dependencies=_protected)
+app.include_router(attachments.router, dependencies=_protected)
 app.include_router(discover.router)  # has per-route auth deps

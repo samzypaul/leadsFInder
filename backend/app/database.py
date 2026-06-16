@@ -61,9 +61,16 @@ def _ensure_columns() -> None:
 
     alters = [
         "ALTER TABLE leads ADD COLUMN IF NOT EXISTS target_service VARCHAR(255)",
+        "ALTER TABLE leads ADD COLUMN IF NOT EXISTS owner_id INTEGER",
         "ALTER TABLE scan_jobs ADD COLUMN IF NOT EXISTS service VARCHAR(255)",
         "ALTER TABLE scan_jobs ADD COLUMN IF NOT EXISTS hint_category VARCHAR(255)",
         "ALTER TABLE scan_jobs ADD COLUMN IF NOT EXISTS hint_city VARCHAR(128)",
+        "ALTER TABLE scan_jobs ADD COLUMN IF NOT EXISTS owner_id INTEGER",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS brand_name VARCHAR(255)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS business_info TEXT",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS brand_website VARCHAR(255)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS brand_phone VARCHAR(64)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS brand_email VARCHAR(255)",
     ]
     with engine.begin() as conn:
         for stmt in alters:

@@ -24,6 +24,25 @@ class UserOut(BaseModel):
     email: str
     full_name: str | None
     is_admin: bool
+    brand_name: str | None = None
+    business_info: str | None = None
+    brand_website: str | None = None
+    brand_phone: str | None = None
+    brand_email: str | None = None
+
+
+class ProfileUpdate(BaseModel):
+    full_name: str | None = None
+    brand_name: str | None = None
+    business_info: str | None = None
+    brand_website: str | None = None
+    brand_phone: str | None = None
+    brand_email: str | None = None
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8)
 
 
 class Token(BaseModel):
@@ -132,6 +151,49 @@ class OutreachOut(BaseModel):
     created_at: datetime
 
 
+# ── Deal / funnel ─────────────────────────────────────────────────────
+class DealOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    stage: str
+    outreach_made: bool
+    currency: str
+    revenue: float
+    cost: float
+    deposit: float
+    notes: str | None
+    profit: float
+    outstanding: float
+    updated_at: datetime
+
+
+class DealUpdate(BaseModel):
+    stage: str | None = None
+    outreach_made: bool | None = None
+    currency: str | None = None
+    revenue: float | None = None
+    cost: float | None = None
+    deposit: float | None = None
+    notes: str | None = None
+
+
+# ── Attachments ───────────────────────────────────────────────────────
+class AttachmentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    kind: str
+    filename: str
+    content_type: str
+    size: int
+    text_content: str | None
+    created_at: datetime
+
+
+class ProposalTextRequest(BaseModel):
+    text: str
+    filename: str = "proposal.txt"
+
+
 # ── Lead ──────────────────────────────────────────────────────────────
 class LeadBase(BaseModel):
     business_name: str
@@ -175,6 +237,8 @@ class LeadOut(LeadBase):
     updated_at: datetime
     competitors: list[CompetitorOut] = []
     outreach_messages: list[OutreachOut] = []
+    deal: DealOut | None = None
+    attachments: list[AttachmentOut] = []
 
 
 class LeadSummary(BaseModel):
@@ -191,13 +255,51 @@ class LeadSummary(BaseModel):
     phone: str | None
     email: str | None
     created_at: datetime
+    # deal-derived
+    deal_stage: str | None = None
+    is_client: bool = False
+    deal_revenue: float | None = None
+    deal_profit: float | None = None
+    deal_currency: str | None = None
 
 
 class LeadUpdate(BaseModel):
-    outreach_status: str | None = None
+    """Editable lead/client details (applies to won and lost alike)."""
+    business_name: str | None = None
+    industry: str | None = None
+    category: str | None = None
+    description: str | None = None
+    website_url: str | None = None
     email: str | None = None
     phone: str | None = None
-    notes: str | None = None
+    whatsapp: str | None = None
+    address: str | None = None
+    city: str | None = None
+    region: str | None = None
+    country: str | None = None
+    outreach_status: str | None = None
+
+
+class ClientRow(BaseModel):
+    id: int
+    business_name: str
+    revenue: float
+    profit: float
+    currency: str
+
+
+class ClientAnalytics(BaseModel):
+    clients: int
+    lost: int
+    win_rate: float                     # won / (won + lost)
+    total_revenue: float
+    total_cost: float
+    total_profit: float
+    total_deposits: float
+    outstanding: float
+    avg_deal_size: float
+    currency: str
+    top_clients: list[ClientRow] = []
 
 
 # ── Dashboard ─────────────────────────────────────────────────────────
@@ -212,6 +314,15 @@ class DashboardStats(BaseModel):
     pipeline: dict[str, int]            # outreach_status -> count
     by_priority: dict[str, int]
     recent_leads: list[LeadSummary]
+    # Funnel + financials (from deals)
+    funnel: dict[str, int] = {}         # deal stage -> count
+    deals_won: int = 0
+    deals_lost: int = 0
+    total_revenue: float = 0.0
+    total_cost: float = 0.0
+    total_profit: float = 0.0
+    total_deposits: float = 0.0
+    currency: str = "TZS"
 
 
 # ── Outreach generation request ───────────────────────────────────────

@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api, Lead } from "@/lib/api";
 import { PriorityBadge, StatusBadge, ScoreRing } from "@/components/ui";
+import { DealPanel } from "@/components/DealPanel";
+import { Attachments } from "@/components/Attachments";
+import { EditDetails } from "@/components/EditDetails";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 
 const OUTREACH_STATES = ["new", "contacted", "replied", "meeting", "won", "lost"];
@@ -92,7 +95,13 @@ export default function LeadDetailPage() {
             <h1 className="text-2xl font-bold">{lead.business_name}</h1>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500">
               <PriorityBadge priority={lead.priority} />
-              <StatusBadge status={lead.status} />
+              {lead.deal?.stage === "won" ? (
+                <span className="badge border-emerald-300 bg-emerald-600 text-white">✓ Client</span>
+              ) : lead.deal?.stage === "lost" ? (
+                <span className="badge border-red-200 bg-red-100 text-red-700">Lost</span>
+              ) : (
+                <StatusBadge status={lead.status} />
+              )}
               <span>{[lead.industry, lead.city].filter(Boolean).join(" • ")}</span>
               {lead.target_service && (
                 <span className="badge border-brand/20 bg-brand/5 text-brand-dark">
@@ -133,6 +142,14 @@ export default function LeadDetailPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
+          <Section title="Deal & funnel">
+            <DealPanel leadId={lead.id} deal={lead.deal} />
+          </Section>
+
+          <Section title="Proposal & contract">
+            <Attachments leadId={lead.id} initial={lead.attachments} />
+          </Section>
+
           <Section title="AI business summary">
             <p className="text-slate-700">{lead.ai_summary || "—"}</p>
           </Section>
@@ -226,7 +243,7 @@ export default function LeadDetailPage() {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          <Section title="Contact">
+          <Section title="Contact & details">
             <dl className="space-y-2 text-sm">
               {contacts.map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-2">
@@ -235,6 +252,9 @@ export default function LeadDetailPage() {
                 </div>
               ))}
             </dl>
+            <div className="mt-4 border-t border-slate-100 pt-3">
+              <EditDetails lead={lead} onSaved={setLead} />
+            </div>
           </Section>
 
           <Section title="Presence">

@@ -57,6 +57,30 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      <div>
+        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-400">
+          Revenue &amp; profit
+        </h2>
+        <p className="mb-3 text-xs text-slate-400">
+          Realized from won deals (clients) — matches the Clients dashboard.
+        </p>
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <StatCard label={`Revenue (${stats.currency})`} value={stats.total_revenue.toLocaleString()} accent="text-emerald-600" />
+          <StatCard label={`Spent (${stats.currency})`} value={stats.total_cost.toLocaleString()} accent="text-slate-600" />
+          <StatCard
+            label={`${stats.total_profit >= 0 ? "Profit" : "Loss"} (${stats.currency})`}
+            value={Math.abs(stats.total_profit).toLocaleString()}
+            accent={stats.total_profit >= 0 ? "text-emerald-600" : "text-red-600"}
+          />
+          <StatCard label="Deals won / lost" value={`${stats.deals_won} / ${stats.deals_lost}`} accent="text-slate-900" />
+        </div>
+        {stats.total_deposits > 0 && (
+          <p className="mt-2 text-xs text-slate-400">
+            Deposits / advances received: {stats.currency} {stats.total_deposits.toLocaleString()}
+          </p>
+        )}
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="card lg:col-span-2">
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">

@@ -4,8 +4,9 @@ from __future__ import annotations
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user
 from app.database import SessionLocal, get_db
-from app.models import ScanJob
+from app.models import ScanJob, User
 from app.schemas import ScanRequest, ScanResult, ScanStep
 from app.services.workflow import run_workflow
 
@@ -44,12 +45,13 @@ def create_scan(
     background: BackgroundTasks,
     wait: bool = Query(False, description="Run synchronously and return the full result"),
     db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
 ):
     if not payload.instagram_url and not payload.business_name:
         raise HTTPException(400, "Provide instagram_url or business_name")
 
     job = ScanJob(input_url=payload.instagram_url, input_name=payload.business_name,
-                  service=payload.service, status="queued")
+                  service=payload.service, owner_id=current.id, status="queued")
     db.add(job)
     db.commit()
     db.refresh(job)
