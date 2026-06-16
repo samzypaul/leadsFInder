@@ -6,16 +6,34 @@ import { api, Candidate, DiscoverResponse, DiscoverScanResult, DiscoveryFilters 
 import { useRequireAuth } from "@/lib/useRequireAuth";
 
 const EXAMPLES = [
-  "tour operators in Arusha without a website",
+  "tour operators in Arusha",
   "hotels in Zanzibar with over 10k followers",
-  "restaurants in Dar es Salaam with no website",
-  "salons and beauty businesses in Dar es Salaam",
+  "restaurants in Dar es Salaam",
+  "law firms in Dodoma",
+];
+
+// What the user is selling. Website-type offerings target businesses WITHOUT a website;
+// anything else targets any business in the niche.
+const SERVICES = [
+  "Website development",
+  "AI chatbot",
+  "Social media management",
+  "POS / payment system",
+  "Accounting software",
+  "Digital marketing",
 ];
 
 const CATEGORIES = ["", "Tour Agency", "Restaurant", "Cafe", "Hotel", "Real Estate",
   "Beauty Salon", "Automotive", "Information Technology", "Healthcare", "Construction"];
 const CITIES = ["", "Arusha", "Dar es Salaam", "Dodoma", "Mwanza", "Moshi", "Zanzibar City",
   "Mbeya", "Tanga", "Bagamoyo", "Iringa"];
+
+function isWebsiteService(service: string): boolean {
+  const s = service.toLowerCase();
+  return ["website", "web site", "web design", "web development", "webdev", "landing page", "web app"].some(
+    (t) => s.includes(t),
+  );
+}
 
 function chip(label: string, value: unknown) {
   if (value === null || value === undefined || value === "" || (Array.isArray(value) && !value.length))
@@ -29,6 +47,7 @@ function chip(label: string, value: unknown) {
 
 export default function DiscoverPage() {
   const { ready } = useRequireAuth();
+  const [service, setService] = useState(SERVICES[0]);
   const [query, setQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<DiscoveryFilters>({ only_without_website: true, limit: 10 });
@@ -56,12 +75,12 @@ export default function DiscoverPage() {
     setScanRes(null);
     setLoading(true);
     try {
-      const body: { query?: string; filters?: DiscoveryFilters } = {};
+      const body: { query?: string; filters?: DiscoveryFilters; service?: string } = { service };
       if (query.trim()) body.query = query.trim();
       const f = showFilters ? buildFilters() : undefined;
       if (f) body.filters = f;
       if (!body.query && !body.filters) {
-        setErr("Type a search or set at least one filter.");
+        setErr("Type a niche to search or set at least one filter.");
         return;
       }
       const r = await api.discover(body);
@@ -87,7 +106,7 @@ export default function DiscoverPage() {
     setScanning(true);
     setErr(null);
     try {
-      const r = await api.discoverScan({ candidates: chosen, max_scans: chosen.length });
+      const r = await api.discoverScan({ candidates: chosen, max_scans: chosen.length, service });
       setScanRes(r);
     } catch (e) {
       setErr(String(e));
@@ -101,24 +120,51 @@ export default function DiscoverPage() {
       <div>
         <h1 className="text-2xl font-bold">Discover businesses</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Describe what you&apos;re looking for in plain English — AI turns it into a targeted
-          search. Then scan the matches to create qualified leads.
+          Tell us what you&apos;re selling and the kind of business to find. AI turns it into a
+          targeted search, then you scan the matches into qualified leads.
         </p>
       </div>
 
       {/* Search box */}
       <div className="card space-y-4 p-6">
-        <div className="flex flex-col gap-2 sm:flex-row">
+        {/* What are you selling? */}
+        <div>
+          <label className="mb-1 block text-sm font-medium">What service are you selling?</label>
           <input
             className="input"
-            placeholder="e.g. tour operators in Arusha without a website"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && search()}
+            list="service-presets"
+            value={service}
+            onChange={(e) => setService(e.target.value)}
+            placeholder="e.g. AI chatbot, POS system, website development…"
           />
-          <button className="btn-primary shrink-0" onClick={search} disabled={loading}>
-            {loading ? "Searching…" : "🔍 Search"}
-          </button>
+          <datalist id="service-presets">
+            {SERVICES.map((s) => (
+              <option key={s} value={s} />
+            ))}
+          </datalist>
+          <p className="mt-1 text-xs text-slate-400">
+            {isWebsiteService(service)
+              ? "Website service → we find businesses that have NO website."
+              : `We'll find any matching business and tailor the pitch to "${service}".`}
+          </p>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium">
+            Which businesses? (niche, location — any niche works)
+          </label>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              className="input"
+              placeholder="e.g. tour operators in Arusha, gyms in Dar, law firms in Dodoma"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && search()}
+            />
+            <button className="btn-primary shrink-0" onClick={search} disabled={loading}>
+              {loading ? "Searching…" : "🔍 Search"}
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2">

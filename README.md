@@ -19,7 +19,8 @@ competitor comparison, a ready-to-send proposal, and multi-channel outreach draf
   targeted search, returns matching businesses, and you scan the ones you pick into leads.
 - **Single scan** — paste one Instagram profile URL (or business name) to run the workflow on it.
 
-Access is protected by **JWT login** (default admin seeded on first boot — see Configuration).
+Access is protected by **JWT auth** — users can **self-service sign up** (`/signup`) or sign in
+(`/login`); a default admin is seeded on first boot (see Configuration).
 
 ### The verification workflow
 

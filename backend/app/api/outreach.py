@@ -37,7 +37,7 @@ def generate_outreach(
     db.commit()
 
     created: list[OutreachMessage] = []
-    for msg in outreach_svc.generate_all(lead, channels):
+    for msg in outreach_svc.generate_all(lead, channels, lead.target_service or "website development"):
         row = OutreachMessage(
             lead_id=lead.id, channel=msg["channel"],
             subject=msg.get("subject"), body=msg["body"],

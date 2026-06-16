@@ -110,6 +110,9 @@ class Lead(Base):
     reviews_count: Mapped[int | None] = mapped_column(Integer)
     rating: Mapped[float | None] = mapped_column(Float)
 
+    # ── Targeting ─────────────────────────────────────────────────────
+    target_service: Mapped[str | None] = mapped_column(String(255))  # what we'd sell them
+
     # ── Workflow verdict ──────────────────────────────────────────────
     status: Mapped[str] = mapped_column(String(32), default=LeadStatus.PROCESSING.value, index=True)
     outreach_status: Mapped[str] = mapped_column(String(32), default=OutreachStatus.NEW.value, index=True)
@@ -176,12 +179,15 @@ class ScanJob(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     input_url: Mapped[str | None] = mapped_column(String(512))
     input_name: Mapped[str | None] = mapped_column(String(255))
+    service: Mapped[str | None] = mapped_column(String(255))  # the offering being sold
+    hint_category: Mapped[str | None] = mapped_column(String(255))  # niche hint from discovery
+    hint_city: Mapped[str | None] = mapped_column(String(128))
     status: Mapped[str] = mapped_column(String(32), default="queued")  # queued|running|done|error
     final_stage: Mapped[str | None] = mapped_column(String(32))
     verdict: Mapped[str | None] = mapped_column(String(32))  # LeadStatus value
     steps: Mapped[list | None] = mapped_column(JSON)  # ordered trace of each step
     error: Mapped[str | None] = mapped_column(Text)
-    lead_id: Mapped[int | None] = mapped_column(ForeignKey("leads.id"))
+    lead_id: Mapped[int | None] = mapped_column(ForeignKey("leads.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

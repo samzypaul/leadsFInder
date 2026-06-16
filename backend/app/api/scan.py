@@ -48,7 +48,8 @@ def create_scan(
     if not payload.instagram_url and not payload.business_name:
         raise HTTPException(400, "Provide instagram_url or business_name")
 
-    job = ScanJob(input_url=payload.instagram_url, input_name=payload.business_name, status="queued")
+    job = ScanJob(input_url=payload.instagram_url, input_name=payload.business_name,
+                  service=payload.service, status="queued")
     db.add(job)
     db.commit()
     db.refresh(job)

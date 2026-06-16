@@ -15,13 +15,17 @@ from app.schemas import (
     DiscoveryFilters,
 )
 from app.services import discovery
+from app.services.offering import is_website_service, normalize_service
 from app.services.workflow import run_workflow
 
 router = APIRouter(prefix="/discover", tags=["discovery"])
 
 
 def _resolve_filters(req: DiscoverRequest) -> tuple[DiscoveryFilters, bool]:
-    """Merge an explicit filter object with anything parsed from the NL query."""
+    """Merge an explicit filter object with anything parsed from the NL query.
+
+    The offering drives `only_without_website`: it's only meaningful for website services.
+    """
     ai_parsed = False
     filters = req.filters or DiscoveryFilters()
     if req.query:
@@ -34,6 +38,10 @@ def _resolve_filters(req: DiscoverRequest) -> tuple[DiscoveryFilters, bool]:
             filters = DiscoveryFilters(**data)
         else:
             filters = parsed
+
+    # Non-website offerings don't gate on website presence.
+    if not is_website_service(req.service):
+        filters.only_without_website = False
     return filters, ai_parsed
 
 
@@ -45,7 +53,7 @@ def discover(
     if not req.query and not req.filters:
         raise HTTPException(400, "Provide a natural-language query or filters")
     filters, ai_parsed = _resolve_filters(req)
-    candidates = discovery.search_businesses(filters)
+    candidates = discovery.search_businesses(filters, req.service)
     return DiscoverResponse(
         interpreted_filters=filters,
         query=req.query,
@@ -67,13 +75,17 @@ def discover_and_scan(
         candidates = req.candidates
     else:
         filters, _ai = _resolve_filters(req)
-        candidates = discovery.search_businesses(filters)
+        candidates = discovery.search_businesses(filters, req.service)
 
+    service = normalize_service(req.service)
     results = []
     for cand in candidates[: req.max_scans]:
         job = ScanJob(
             input_url=cand.instagram_url,
             input_name=cand.business_name,
+            service=service,
+            hint_category=cand.category,   # carry the discovered niche into the lead
+            hint_city=cand.city,
             status="queued",
         )
         db.add(job)

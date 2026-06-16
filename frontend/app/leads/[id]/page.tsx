@@ -94,6 +94,11 @@ export default function LeadDetailPage() {
               <PriorityBadge priority={lead.priority} />
               <StatusBadge status={lead.status} />
               <span>{[lead.industry, lead.city].filter(Boolean).join(" • ")}</span>
+              {lead.target_service && (
+                <span className="badge border-brand/20 bg-brand/5 text-brand-dark">
+                  🎯 {lead.target_service}
+                </span>
+              )}
               {lead.ai_generated && <span className="badge bg-violet-100 text-violet-700 border-violet-200">AI-generated</span>}
             </div>
           </div>
@@ -132,7 +137,7 @@ export default function LeadDetailPage() {
             <p className="text-slate-700">{lead.ai_summary || "—"}</p>
           </Section>
 
-          <Section title="Why they need a website">
+          <Section title={`Why they need ${lead.target_service || "a website"}`}>
             <ul className="space-y-2">
               {lead.opportunity_analysis?.reasons?.map((r, i) => (
                 <li key={i} className="flex gap-2 text-slate-700">
@@ -209,8 +214,7 @@ export default function LeadDetailPage() {
                 </div>
                 <div className="text-slate-600">
                   <span className="font-semibold text-slate-900">Timeline:</span>{" "}
-                  {lead.proposal.estimated_timeline.website} ·{" "}
-                  {lead.proposal.estimated_timeline.chatbot}
+                  {Object.values(lead.proposal.estimated_timeline || {}).join(" · ")}
                 </div>
                 <div className="rounded-lg bg-brand/10 p-3 font-medium text-brand-dark">
                   {lead.proposal.call_to_action}

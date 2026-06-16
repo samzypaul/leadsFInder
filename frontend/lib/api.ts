@@ -88,6 +88,7 @@ export interface OutreachMessage {
 
 export interface Lead extends LeadSummary {
   username: string | null;
+  target_service: string | null;
   industry: string | null;
   description: string | null;
   instagram_url: string | null;
@@ -119,7 +120,7 @@ export interface ProposalDoc {
   current_situation: string;
   recommended_solution: string[];
   expected_benefits: string[];
-  estimated_timeline: { website: string; chatbot: string };
+  estimated_timeline: Record<string, string>;
   call_to_action: string;
 }
 
@@ -204,6 +205,14 @@ export const api = {
     auth.set(r.access_token);
     return r.user;
   },
+  signup: async (email: string, password: string, fullName?: string) => {
+    const r = await req<{ access_token: string; user: User }>("/auth/signup", {
+      method: "POST",
+      body: JSON.stringify({ email, password, full_name: fullName || null }),
+    });
+    auth.set(r.access_token);
+    return r.user;
+  },
   me: () => req<User>("/auth/me"),
   logout: () => {
     auth.clear();
@@ -211,9 +220,9 @@ export const api = {
   },
 
   // ── discovery ──
-  discover: (body: { query?: string; filters?: DiscoveryFilters }) =>
+  discover: (body: { query?: string; filters?: DiscoveryFilters; service?: string }) =>
     req<DiscoverResponse>("/discover", { method: "POST", body: JSON.stringify(body) }),
-  discoverScan: (body: { query?: string; filters?: DiscoveryFilters; candidates?: Candidate[]; max_scans?: number }) =>
+  discoverScan: (body: { query?: string; filters?: DiscoveryFilters; candidates?: Candidate[]; max_scans?: number; service?: string }) =>
     req<DiscoverScanResult>("/discover/scan", { method: "POST", body: JSON.stringify(body) }),
 
   stats: () => req<DashboardStats>("/dashboard/stats"),
@@ -226,7 +235,7 @@ export const api = {
     req<Lead>(`/leads/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   reenrich: (id: number) => req<Lead>(`/leads/${id}/enrich`, { method: "POST" }),
   deleteLead: (id: number) => req<void>(`/leads/${id}`, { method: "DELETE" }),
-  scan: (body: { instagram_url?: string; business_name?: string }, wait = true) =>
+  scan: (body: { instagram_url?: string; business_name?: string; service?: string }, wait = true) =>
     req<ScanResult>(`/scan?wait=${wait}`, { method: "POST", body: JSON.stringify(body) }),
   scanStatus: (jobId: number) => req<ScanResult>(`/scan/${jobId}`),
   generateOutreach: (id: number, channels?: string[]) =>

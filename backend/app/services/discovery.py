@@ -90,6 +90,11 @@ def _heuristic_parse(query: str) -> DiscoveryFilters:
         stop.update(f.city.lower().split())
     tokens = [t for t in re.findall(r"[a-z]+", q) if t not in stop and len(t) > 2]
     f.keywords = list(dict.fromkeys(tokens))[:5]
+
+    # Flexible niche: if no known industry matched, treat the leftover phrase as a free-text
+    # niche so ANY business type works (e.g. "law firms", "gyms", "printing shops").
+    if not f.category and f.keywords:
+        f.category = " ".join(f.keywords[:3])
     return f
 
 
@@ -98,12 +103,62 @@ def _singular(word: str) -> str:
 
 
 # ── Candidate search ───────────────────────────────────────────────────
-def search_businesses(filters: DiscoveryFilters) -> list[Candidate]:
+def search_businesses(filters: DiscoveryFilters, service: str = "website development") -> list[Candidate]:
+    """Find candidate businesses for ANY niche.
+
+    Order: live Google search → bundled directory → AI-generated candidates (so niches not in
+    the directory still work when a model key is available).
+    """
     if settings.search_enabled:
         live = _search_google(filters)
         if live:
             return live[: filters.limit]
-    return _search_directory(filters)[: filters.limit]
+
+    directory = _search_directory(filters)
+    if directory:
+        return directory[: filters.limit]
+
+    # Niche not in the bundled directory — let AI propose candidates.
+    if settings.ai_enabled:
+        ai_cands = _ai_generate_candidates(filters, service)
+        if ai_cands:
+            return ai_cands[: filters.limit]
+    return []
+
+
+def _ai_generate_candidates(filters: DiscoveryFilters, service: str) -> list[Candidate]:
+    niche = filters.category or filters.industry or " ".join(filters.keywords) or "businesses"
+    loc = filters.city or filters.region or "Tanzania"
+    only_no_site = filters.only_without_website
+    prompt = (
+        f"List up to {filters.limit} real, specific {niche} businesses in or near {loc}, "
+        f"Tanzania that a vendor selling '{service}' could approach as leads"
+        + (" — prefer ones that likely do NOT have their own website." if only_no_site else ".")
+        + ' Return JSON: {"businesses": [{"business_name": "...", "city": "...", '
+        '"category": "...", "instagram": "handle or null"}]}'
+    )
+
+    def fallback() -> dict:
+        return {"businesses": []}
+
+    data, ok = ai.generate_json(prompt, fallback)
+    out: list[Candidate] = []
+    for b in (data.get("businesses") or []) if ok else []:
+        name = (b.get("business_name") or "").strip()
+        if not name:
+            continue
+        ig = (b.get("instagram") or "").strip().lstrip("@") or None
+        out.append(Candidate(
+            business_name=name[:120],
+            instagram_url=f"https://www.instagram.com/{ig}/" if ig else None,
+            category=b.get("category") or niche,
+            city=b.get("city") or filters.city,
+            region=filters.region,
+            followers=None,
+            source="ai",
+            likely_no_website=only_no_site,
+        ))
+    return out
 
 
 def _matches(entry: dict, filters: DiscoveryFilters) -> bool:

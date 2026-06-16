@@ -9,16 +9,35 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from collections.abc import Callable
 
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from app.config import settings
 
 log = logging.getLogger("leadhunter.ai")
 
+# Non-transient failures (quota, bad key, bad model/request) — retrying just adds latency
+# and burns nothing useful, so we fall back to templates immediately.
+_NON_TRANSIENT = ("429", "quota", "exhausted", "resource_exhausted", "api key", "api_key",
+                  "permission", "403", "401", "404", "invalid", "not found")
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=8), reraise=True)
+
+def _is_transient(exc: BaseException) -> bool:
+    msg = str(exc).lower()
+    return not any(tok in msg for tok in _NON_TRANSIENT)
+
+
+_retry = retry(
+    retry=retry_if_exception(_is_transient),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=8),
+    reraise=True,
+)
+
+
+@_retry
 def _gemini(prompt: str, *, json_mode: bool) -> str:
     import google.generativeai as genai
 
@@ -29,7 +48,7 @@ def _gemini(prompt: str, *, json_mode: bool) -> str:
     return resp.text
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=8), reraise=True)
+@_retry
 def _openai(prompt: str, *, json_mode: bool) -> str:
     from openai import OpenAI
 
@@ -43,15 +62,31 @@ def _openai(prompt: str, *, json_mode: bool) -> str:
     return resp.choices[0].message.content or ""
 
 
+# Circuit breaker: after a non-transient failure (quota/auth), stop calling the model for a
+# cool-off window so we don't pay a round-trip per call just to get the same error. A single
+# enrichment makes ~10 calls — without this, an exhausted quota makes every scan ~25s slow.
+_COOLOFF_SECONDS = 120.0
+_disabled_until = 0.0
+
+
 def _call_model(prompt: str, *, json_mode: bool) -> str | None:
+    global _disabled_until
     provider = settings.ai_provider
+
+    if time.monotonic() < _disabled_until:
+        return None  # in cool-off — fall back instantly
+
     try:
         if provider == "gemini" and settings.gemini_api_key:
             return _gemini(prompt, json_mode=json_mode)
         if provider == "openai" and settings.openai_api_key:
             return _openai(prompt, json_mode=json_mode)
     except Exception as exc:  # noqa: BLE001
-        log.warning("AI call failed (%s); using fallback: %s", provider, exc)
+        if not _is_transient(exc):
+            _disabled_until = time.monotonic() + _COOLOFF_SECONDS
+            log.warning("AI disabled for %ss after non-transient error: %s", int(_COOLOFF_SECONDS), exc)
+        else:
+            log.warning("AI call failed (%s); using fallback: %s", provider, exc)
     return None
 
 

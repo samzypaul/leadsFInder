@@ -74,7 +74,7 @@ def reenrich_lead(lead_id: int, db: Session = Depends(get_db)):
     lead.competitors.clear()
     lead.outreach_messages.clear()
     db.commit()
-    _enrich_lead(db, lead)
+    _enrich_lead(db, lead, lead.target_service or "website development")
     db.refresh(lead)
     return lead
 

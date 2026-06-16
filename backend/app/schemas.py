@@ -12,6 +12,12 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class SignupRequest(BaseModel):
+    email: str
+    password: str = Field(min_length=8, description="At least 8 characters")
+    full_name: str | None = None
+
+
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
@@ -31,7 +37,7 @@ class DiscoveryFilters(BaseModel):
     industry: str | None = None
     city: str | None = None
     region: str | None = None
-    category: str | None = None
+    category: str | None = None  # free-text business niche (any value accepted)
     keywords: list[str] = Field(default_factory=list)
     min_followers: int | None = None
     only_without_website: bool = True
@@ -39,10 +45,15 @@ class DiscoveryFilters(BaseModel):
 
 
 class DiscoverRequest(BaseModel):
-    """Either a natural-language `query` or explicit `filters` (or both)."""
+    """Either a natural-language `query` or explicit `filters` (or both), plus the offering."""
     query: str | None = Field(default=None, description="Natural-language search, e.g. "
-                              "'tour operators in Arusha without a website'")
+                              "'coffee shops in Arusha' or 'law firms in Dodoma'")
     filters: DiscoveryFilters | None = None
+    service: str = Field(
+        default="website development",
+        description="What you're selling. Determines how leads qualify (website-type => "
+                    "businesses without a website; otherwise any niche match).",
+    )
 
 
 class Candidate(BaseModel):
@@ -79,6 +90,11 @@ class ScanRequest(BaseModel):
     )
     business_name: str | None = Field(
         default=None, description="Business name (used if no Instagram URL is given)"
+    )
+    service: str = Field(
+        default="website development",
+        description="What you're selling. Website-type services qualify businesses that have "
+                    "no website; other services qualify any business in the target niche.",
     )
 
 
@@ -143,6 +159,7 @@ class LeadBase(BaseModel):
 class LeadOut(LeadBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
+    target_service: str | None
     status: str
     outreach_status: str
     score: int | None

@@ -100,6 +100,7 @@ All paths except `/health` and `/auth/login` require a `Authorization: Bearer <t
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/health` | status + which providers are enabled (public) |
+| `POST` | `/auth/signup` | self-service account creation → JWT (public) |
 | `POST` | `/auth/login` | exchange email+password for a JWT (public) |
 | `GET` | `/auth/me` | current user |
 | `POST` | `/discover` | targeted/NL business discovery → candidates |

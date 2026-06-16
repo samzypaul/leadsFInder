@@ -39,23 +39,37 @@ def business_summary(lead) -> tuple[str, bool]:
     return ai.generate_text(prompt, fallback)
 
 
-def opportunity_analysis(lead) -> tuple[dict, bool]:
+def opportunity_analysis(lead, service: str = "website development") -> tuple[dict, bool]:
+    from app.services.offering import is_website_service
+
     prompt = (
-        "List 4-6 specific reasons (short phrases) why this business is losing opportunities "
-        'by not having a website. Return JSON: {"reasons": ["..."]}.\n\n' + _ctx(lead)
+        f"List 4-6 specific reasons (short phrases) why this business would benefit from "
+        f"'{service}' and is currently missing out without it. Return JSON: "
+        '{"reasons": ["..."]}.\n\n' + _ctx(lead)
     )
 
     def fallback() -> dict:
-        reasons = [
-            "No owned online presence — fully dependent on social platforms",
-            "Losing leads from Google Search (no site to rank or be found)",
-            "No online booking or enquiry capability",
-            "No structured customer inquiry funnel",
-            "Competitors in the same category already have websites",
-        ]
-        if lead.reviews_count:
-            reasons.append("Strong reviews not showcased on an owned, conversion-focused page")
-        return {"reasons": reasons}
+        if is_website_service(service):
+            reasons = [
+                "No owned online presence — fully dependent on social platforms",
+                "Losing leads from Google Search (no site to rank or be found)",
+                "No online booking or enquiry capability",
+                "No structured customer inquiry funnel",
+                "Competitors in the same category already have websites",
+            ]
+            if lead.reviews_count:
+                reasons.append("Strong reviews not showcased on an owned, conversion page")
+            return {"reasons": reasons}
+        # Generic, service-aware opportunity reasons.
+        cat = (lead.category or lead.industry or "business").lower()
+        return {"reasons": [
+            f"No {service} in place — likely handled manually or not at all",
+            f"Competing {cat}s adopting {service} are pulling ahead",
+            f"Missed efficiency and revenue without {service}",
+            f"Strong social audience ({lead.followers or 'an engaged following'}) "
+            f"under-monetised without {service}",
+            f"Customer demand not captured or automated without {service}",
+        ]}
 
     return ai.generate_json(prompt, fallback)
 

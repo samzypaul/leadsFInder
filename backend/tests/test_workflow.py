@@ -22,10 +22,10 @@ def fresh_db():
     Base.metadata.drop_all(bind=engine)
 
 
-def _run(url: str) -> ScanJob:
+def _run(url: str, service: str = "website development") -> ScanJob:
     db = SessionLocal()
     try:
-        job = ScanJob(input_url=url, status="queued")
+        job = ScanJob(input_url=url, service=service, status="queued")
         db.add(job)
         db.commit()
         db.refresh(job)
@@ -65,6 +65,56 @@ def test_facebook_step_runs_when_instagram_has_no_website():
     stages = [s["stage"] for s in job.steps]
     assert "facebook" in stages
     assert job.verdict == LeadStatus.QUALIFIED_LEAD.value
+
+
+def test_nonwebsite_service_qualifies_business_with_website():
+    # Kilizo Tech HAS a website, so it's not a website lead — but for an "AI chatbot"
+    # offering it should still qualify (website presence is irrelevant).
+    job = _run("https://www.instagram.com/kilizotech/", service="AI chatbot")
+    assert job.verdict == LeadStatus.QUALIFIED_LEAD.value
+    db = SessionLocal()
+    lead = db.get(Lead, job.lead_id)
+    assert lead.target_service == "AI chatbot"
+    # Service-aware opportunity reasons mention the service, not "website".
+    reasons = " ".join(lead.opportunity_analysis["reasons"]).lower()
+    assert "ai chatbot" in reasons
+    db.close()
+
+
+def test_website_service_still_filters_on_website():
+    job = _run("https://www.instagram.com/kilizotech/", service="website development")
+    assert job.verdict == LeadStatus.WEBSITE_FOUND.value
+
+
+def test_competitors_match_niche_not_default():
+    from app.services.competitor import find_competitors
+
+    class FakeLead:
+        industry = "Construction"
+        category = "Construction"
+        city = "Iringa"
+        region = "Iringa"
+
+    comps = find_competitors(FakeLead(), limit=5)
+    blob = " ".join((c["name"] + " " + (c.get("key_services") or "")).lower() for c in comps)
+    assert comps, "should return some competitors"
+    # The old bug returned safari/tour operators for every niche.
+    assert "safari" not in blob and "travel & tours" not in blob
+
+
+def test_generic_competitors_for_unknown_niche():
+    from app.services.competitor import find_competitors
+
+    class FakeLead:
+        industry = "Pottery Studio"
+        category = "Pottery Studio"
+        city = "Mtwara"
+        region = "Mtwara"
+
+    comps = find_competitors(FakeLead(), limit=5)
+    blob = " ".join(c["name"].lower() for c in comps)
+    assert "pottery" in blob  # niche-correct, not off-topic
+    assert "safari" not in blob
 
 
 def test_scoring_buckets():

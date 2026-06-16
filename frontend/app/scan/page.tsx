@@ -19,6 +19,7 @@ export default function ScanPage() {
   const { ready } = useRequireAuth();
   const [instagram, setInstagram] = useState("");
   const [name, setName] = useState("");
+  const [service, setService] = useState("Website development");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -30,7 +31,7 @@ export default function ScanPage() {
     setLoading(true);
     try {
       const r = await api.scan(
-        { instagram_url: instagram || undefined, business_name: name || undefined },
+        { instagram_url: instagram || undefined, business_name: name || undefined, service },
         true,
       );
       setResult(r);
@@ -70,6 +71,25 @@ export default function ScanPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Service you&apos;re selling</label>
+          <input
+            className="input"
+            list="scan-services"
+            value={service}
+            onChange={(e) => setService(e.target.value)}
+            placeholder="Website development, AI chatbot, POS system…"
+          />
+          <datalist id="scan-services">
+            {["Website development", "AI chatbot", "Social media management", "POS / payment system", "Accounting software", "Digital marketing"].map((s) => (
+              <option key={s} value={s} />
+            ))}
+          </datalist>
+          <p className="mt-1 text-xs text-slate-400">
+            Website services flag businesses with no website; other services qualify any
+            business and tailor the pitch.
+          </p>
         </div>
         <button className="btn-primary w-full" disabled={loading || (!instagram && !name)}>
           {loading ? "Scanning…" : "Run scan"}

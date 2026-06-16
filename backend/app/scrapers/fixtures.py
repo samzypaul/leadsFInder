@@ -224,6 +224,48 @@ COMPETITOR_FIXTURES: dict[str, list[dict]] = {
         {"name": "Mrisho Consult", "website_url": "https://www.mrishoconsult.co.tz",
          "key_services": "Searchable listings, WhatsApp + enquiry funnels"},
     ],
+    "Hotel": [
+        {"name": "Serena Hotels", "website_url": "https://www.serenahotels.com",
+         "key_services": "Online booking engine, room galleries, loyalty programme"},
+        {"name": "Hyatt Kilimanjaro", "website_url": "https://www.hyatt.com",
+         "key_services": "Real-time reservations, events, reviews integration"},
+    ],
+    "Construction": [
+        {"name": "Group Six International", "website_url": "https://www.groupsix.co.tz",
+         "key_services": "Project portfolio, tenders, enquiry forms, certifications"},
+        {"name": "Estim Construction", "website_url": "https://www.estim.co.tz",
+         "key_services": "Showcased projects, services catalogue, contact funnel"},
+    ],
+    "Beauty Salon": [
+        {"name": "Sleek Salon Dar", "website_url": "https://www.sleek.co.tz",
+         "key_services": "Online booking, price list, gallery, WhatsApp booking"},
+        {"name": "La Beaute Spa", "website_url": "https://www.labeautespa.co.tz",
+         "key_services": "Appointment scheduling, packages, loyalty offers"},
+    ],
+    "Automotive": [
+        {"name": "CMC Motors Tanzania", "website_url": "https://www.cmcmotors.com",
+         "key_services": "Service booking, parts catalogue, branch finder"},
+        {"name": "Toyota Tanzania", "website_url": "https://www.toyota.co.tz",
+         "key_services": "Online quotes, service scheduling, inventory"},
+    ],
+    "Information Technology": [
+        {"name": "Smart Codes", "website_url": "https://www.smartcodes.co.tz",
+         "key_services": "Portfolio, case studies, lead-gen forms, blog/SEO"},
+        {"name": "NINAYO / e-commerce builders", "website_url": "https://www.ninayo.com",
+         "key_services": "Productised services, online demos, support portal"},
+    ],
+    "Healthcare": [
+        {"name": "Aga Khan Hospital", "website_url": "https://www.agakhanhospitals.org",
+         "key_services": "Online appointments, services directory, patient portal"},
+        {"name": "Regency Medical Centre", "website_url": "https://www.regencymedicalcentre.com",
+         "key_services": "Doctor booking, departments, enquiry forms"},
+    ],
+    "Cafe": [
+        {"name": "Africafe", "website_url": "https://www.africafe.co.tz",
+         "key_services": "Menu, store locator, online ordering, loyalty"},
+        {"name": "Slow Leopard", "website_url": "https://www.slowleopard.co.tz",
+         "key_services": "Menu, events, reservations, delivery links"},
+    ],
 }
 
 
